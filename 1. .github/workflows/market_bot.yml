@@ -1,0 +1,66 @@
+name: Market Intelligence Bot
+
+on:
+  schedule:
+    - cron: '30 2 * * *'   # 08:00 IST
+    - cron: '30 3 * * *'   # 09:00 IST
+    # ... বাকি ক্রন টাইমগুলো আগের মতোই (মোট ১৬টা)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Mode (large_cap, breaking_news, etc.)'
+        required: true
+
+concurrency: market-bot-run
+
+jobs:
+  run-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+
+      - name: Determine mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
+          else
+            HOUR=$(date +%H)
+            MINUTE=$(date +%M)
+            case "$HOUR:$MINUTE" in
+              "02:30") MODE="large_cap" ;;
+              "03:30") MODE="mid_cap" ;;
+              "04:30") MODE="small_cap" ;;
+              "05:30") MODE="etf" ;;
+              "06:30") MODE="mutual_fund" ;;
+              "07:30") MODE="banking" ;;
+              "08:30") MODE="pharma" ;;
+              "09:30") MODE="auto" ;;
+              "10:30") MODE="it" ;;
+              "11:30") MODE="defence" ;;
+              "12:30") MODE="high_volume" ;;
+              "13:30") MODE="breaking_news" ;;
+              "14:30") MODE="gold" ;;
+              "15:30") MODE="watchlist" ;;
+              "16:30") MODE="top_gainers" ;;
+              "17:30") MODE="top_losers" ;;
+              *) MODE="large_cap" ;;
+            esac
+            echo "mode=$MODE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run God-Level Bot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: python src/main.py --mode "${{ steps.mode.outputs.mode }}"
