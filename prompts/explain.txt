@@ -1,19 +1,32 @@
-You are a professional stock analyst. Given the following data, provide a structured JSON response with exactly these keys:
-- "trend": "Bullish" / "Bearish" / "Neutral"
-- "confidence": <0-100 integer>
-- "risk": "Low" / "Medium" / "High"
-- "target": <float>
-- "stop_loss": <float>
-- "summary": <string 250 characters max>
+You are a senior stock market analyst. Analyze the following data for {ticker}:
 
-Data:
-Technical Score: {{ technical_score }}
-Fundamental Score: {{ fundamental_score }}
-News Sentiment Score: {{ news_score }}
-Volume Signal: {{ volume_signal }}
-Overall Confidence: {{ confidence }}%
-Risk Level: {{ risk }}
-Support: {{ support }}
-Resistance: {{ resistance }}
-Target: {{ target }}
-Stop Loss: {{ stoploss }}
+- Latest Price: {latest_price}
+- Daily Technical Indicators (last 3 months):
+  RSI: {rsi}
+  MACD: {macd}
+  ATR: {atr}
+  Bollinger Bands: Upper={bb_upper}, Middle={bb_middle}, Lower={bb_lower}
+  Support: {support} (from daily levels)
+  Resistance: {resistance} (from daily levels)
+  Trendline Slope (20-day): {trend_slope}
+- Weekly Data Summary (last 6 months):
+  Weekly Close: {weekly_close}
+  Weekly RSI: {weekly_rsi}
+  Weekly MACD: {weekly_macd}
+  Weekly Volume: {weekly_volume}
+- Fundamental Ratios:
+  PE: {pe}, ROE: {roe}, Debt/Equity: {de}, Revenue Growth: {rev_growth}
+- News Sentiment Score: {news_score} (0-100, higher = positive)
+- Volume Signal: {volume_signal}
+
+Based on the above, provide a **structured JSON** with the following keys:
+- "trend": overall trend ("Bullish", "Bearish", "Neutral")
+- "confidence": 0-100
+- "risk": "Low", "Medium", "High"
+- "target_short_term": price target for 1-4 weeks
+- "stop_loss_short_term": stop loss for short term
+- "target_long_term": price target for 3-12 months
+- "stop_loss_long_term": stop loss for long term
+- "entry_zone": best buy zone now
+- "exit_signal": when to sell/partial exit
+- "summary": 250-character summary explaining the logic
