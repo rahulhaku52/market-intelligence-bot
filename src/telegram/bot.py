@@ -6,7 +6,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 import re
 
 def escape_markdown(text):
-    # Escape for MarkdownV2
+    # MarkdownV2 escape
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
 
@@ -23,5 +23,5 @@ def send_analysis(message, chart_bytes=None):
     except TelegramError as e:
         if 'Too Many Requests' in str(e):
             time.sleep(5)
-            raise  # will retry
+            raise  # retry
         raise
