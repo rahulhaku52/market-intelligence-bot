@@ -35,12 +35,19 @@ def load_tickers(mode):
     _, tickers_dict = get_categories()
     if mode == 'watchlist':
         supabase = get_supabase()
-        res = supabase.table('watchlist').select('ticker').execute()
-        return [r['ticker'] for r in res.data]
+        if supabase:
+            try:
+                res = supabase.table('watchlist').select('ticker').execute()
+                return [r['ticker'] for r in res.data]
+            except Exception as e:
+                logger.error(f"Watchlist fetch failed: {e}")
+                return []
+        else:
+            logger.warning("Supabase not available for watchlist.")
+            return []
     return tickers_dict.get(mode, [])
 
 def get_market_alignment(ticker):
-    # Compare stock with Nifty50
     try:
         nifty_hist, _ = yfetch('^NSEI', period='5d')
         if nifty_hist is None or nifty_hist.empty:
@@ -58,11 +65,9 @@ def get_market_alignment(ticker):
         return 50
 
 def get_sector_alignment(ticker):
-    # Placeholder: map ticker to sector ETF
     return 50
 
 def get_earnings_penalty(ticker):
-    # Placeholder: check earnings in next 5 days
     return 0
 
 def multi_timeframe_agreement(df):
@@ -88,12 +93,10 @@ def multi_timeframe_agreement(df):
 def run_full_analysis(ticker, mode):
     logger.info(f"🔍 God-Level Analysis: {ticker}")
     try:
-        # Fetch data
         y_hist, y_info = yfetch(ticker)
         if y_hist is None or y_hist.empty:
             logger.warning(f"No Yahoo data for {ticker}, trying Finnhub fallback")
             f_quote = fetch_quote(ticker)
-            # Fallback: can't get historical, skip
             return None
         y_hist = clean_historical(y_hist)
         y_info = clean_info(y_info)
@@ -106,12 +109,10 @@ def run_full_analysis(ticker, mode):
         close = y_hist['Close']
         latest_price = close.iloc[-1]
 
-        # Technical
         tech_score = technical_score(y_hist, latest_price)
         mtf = multi_timeframe_agreement(y_hist)
-        tech_score = int(tech_score * 0.9 + mtf * 0.1)  # blend with MTF agreement
+        tech_score = int(tech_score * 0.9 + mtf * 0.1)
 
-        # Fundamental
         fund = extract_fundamentals(y_info)
         fund_score = 50
         pe = fund.get('PE')
@@ -123,19 +124,16 @@ def run_full_analysis(ticker, mode):
         if roe and roe > 0.15: fund_score += 20
         fund_score = max(0, min(100, fund_score))
 
-        # News processing
         all_articles = n_articles + [{'title': a['headline'], 'description': a['summary'], 'source': {'name': 'Finnhub'}} for a in f_news]
         all_articles = remove_duplicates(all_articles)
         all_articles = weight_articles(all_articles)
         sentiment = score_articles(all_articles)
         sentiment_norm = (sentiment + 30) / 60 * 100
 
-        # Volume
         vol_spike = detect_volume_spike(y_hist)
         gap = detect_gap(y_hist)
         vol_score = 90 if vol_spike else (70 if gap else 50)
 
-        # Market alignment
         market_align = get_market_alignment(ticker)
         sector_align = get_sector_alignment(ticker)
         earnings_penalty = get_earnings_penalty(ticker)
@@ -145,12 +143,10 @@ def run_full_analysis(ticker, mode):
             market_align, sector_align, earnings_penalty, mtf
         )
 
-        # Support/Resistance
         supports, resistances = find_levels(close)
         support = supports[0] if supports else latest_price * 0.98
         resistance = resistances[0] if resistances else latest_price * 1.02
 
-        # Risk
         atr_val = atr(y_hist).iloc[-1]
         atr_pct = atr_val / latest_price * 100
         volatility = close.pct_change().std()
@@ -160,7 +156,6 @@ def run_full_analysis(ticker, mode):
         target = resistance * 1.05
         stoploss = support * 0.97
 
-        # AI structured report
         analysis_data = {
             'technical_score': tech_score,
             'fundamental_score': fund_score,
@@ -215,8 +210,10 @@ def main():
         logger.info("Market closed or holiday. Skipping analysis. Use --force to override.")
         return
 
-    # Evaluate closed backtest signals before new analysis
-    evaluate_closed_signals()
+    try:
+        evaluate_closed_signals()
+    except Exception as e:
+        logger.error(f"Backtest evaluation failed, continuing: {e}")
 
     tickers = load_tickers(mode)
     if not tickers:
@@ -243,13 +240,17 @@ def main():
     for sig in signals:
         try:
             send_analysis(sig['message'], sig['chart'])
-            supabase.table('posted_analysis').insert({
-                'ticker': sig['ticker'],
-                'category': sig['category'],
-                'expiry_date': (date.today() + timedelta(days=30)).isoformat(),
-                'confidence': sig['confidence'],
-                'report_summary': sig['message'][:200]
-            }).execute()
+            if supabase:
+                try:
+                    supabase.table('posted_analysis').insert({
+                        'ticker': sig['ticker'],
+                        'category': sig['category'],
+                        'expiry_date': (date.today() + timedelta(days=30)).isoformat(),
+                        'confidence': sig['confidence'],
+                        'report_summary': sig['message'][:200]
+                    }).execute()
+                except Exception as e:
+                    logger.error(f"Failed to save analysis: {e}")
             logger.info(f"✅ Posted {sig['ticker']}")
             time.sleep(2)
         except Exception as e:
