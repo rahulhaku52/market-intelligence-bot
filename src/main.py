@@ -1,8 +1,9 @@
 import argparse, os, time, json, traceback
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from src.utils.logger import logger
 from src.database.supabase_client import get_supabase
 from src.database.queries import should_analyze
+from src.database.posted_tracker import should_post, update_posted
 from src.fetchers.yahoo import fetch as yfetch
 from src.fetchers.finnhub import fetch_quote, fetch_news
 from src.fetchers.newsapi import fetch_news as newsapi_fetch
@@ -115,11 +116,7 @@ def run_full_analysis(ticker, mode):
         )
         risk = compute_risk(confidence, atr_daily/latest_price*100, close_daily.pct_change().std(), gap, 0)
 
-        # Target & StopLoss (fallback values, used only if AI misses them)
-        target = resistance * 1.05
-        stoploss = support * 0.97
-
-        # AI structured report (new god‑level schema)
+        # AI structured report
         analysis_data = {
             'ticker': ticker,
             'latest_price': f"{latest_price:.2f}",
@@ -142,7 +139,6 @@ def run_full_analysis(ticker, mode):
             'rev_growth': rev_growth if rev_growth else 'N/A',
             'news_score': int(sentiment_norm),
             'volume_signal': 'Spike' if vol_spike else 'Normal',
-            # fallback keys (used if AI response missing)
             'confidence': confidence,
             'risk': risk,
             'target': target,
@@ -157,7 +153,7 @@ def run_full_analysis(ticker, mode):
         # Build chart
         chart = generate_chart(y_hist, ticker, support, resistance)
 
-        # ----- God‑Level Telegram Message -----
+        # God‑Level Telegram Message
         reasons_list = '\n'.join([f"• {r}" for r in ai_response.get('reasons', [])])
         scenarios = ai_response.get('scenarios', {})
         message = (
@@ -178,10 +174,9 @@ def run_full_analysis(ticker, mode):
             f"<b>Risk:</b> {ai_response.get('risk', risk)}\n"
             f"<b>Data Freshness:</b> {ai_response.get('data_freshness', 'N/A')}\n"
             f"<b>Status:</b> {ai_response.get('status', 'N/A')}\n\n"
-            f"📝 {ai_response.get('summary', '')}"  # optional extra summary
+            f"📝 {ai_response.get('summary', '')}"
         )
 
-        # Record signal for backtesting (using short-term TP/SL)
         record_signal(ticker, mode, latest_price,
                       float(ai_response.get('tp_short', 0)),
                       float(ai_response.get('sl_short', 0)),
@@ -193,7 +188,8 @@ def run_full_analysis(ticker, mode):
             'chart': chart,
             'confidence': confidence,
             'category': mode,
-            'priority': 100
+            'priority': 100,
+            'trend': ai_response.get('trend', 'Neutral')   # NEW KEY
         }
     except Exception as e:
         logger.error(f"Error analyzing {ticker}: {e}")
@@ -232,6 +228,15 @@ def main():
     signals = sort_by_priority(signals)
     supabase = get_supabase()
     for sig in signals:
+        ticker = sig['ticker']
+        new_trend = sig.get('trend', 'Neutral')
+        new_conf = sig['confidence']
+
+        # ---- Posting Logic with Change Detection ----
+        if not should_post(ticker, new_trend, new_conf):
+            logger.info(f"⏭️ Skipping {ticker} (no significant change)")
+            continue
+
         try:
             send_analysis(sig['message'], sig['chart'])
             if supabase:
@@ -245,10 +250,11 @@ def main():
                     }).execute()
                 except Exception as e:
                     logger.error(f"Failed to save analysis: {e}")
-            logger.info(f"✅ Posted {sig['ticker']}")
+            update_posted(ticker, new_trend, new_conf)
+            logger.info(f"✅ Posted {ticker}")
             time.sleep(2)
         except Exception as e:
-            logger.error(f"Failed to send {sig['ticker']}: {e}")
+            logger.error(f"Failed to send {ticker}: {e}")
 
 if __name__ == '__main__':
     main()
