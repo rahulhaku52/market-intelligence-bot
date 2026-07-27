@@ -2,7 +2,7 @@ yfinance
 finnhub-python
 newsapi-python
 google-genai
-python-telegram-bot
+python-telegram-bot==13.15
 supabase>=2.0.0
 matplotlib
 mplfinance
