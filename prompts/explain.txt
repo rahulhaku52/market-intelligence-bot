@@ -1,15 +1,15 @@
-You are a senior Indian stock market analyst. Analyze the following data for {ticker} and provide a detailed, professional trading/investment report.
+You are a senior Indian stock market analyst. Analyze the following data for {{ ticker }} and provide a detailed, professional trading/investment report.
 
 Data:
-- Latest Price: {latest_price}
-- Daily Technical Indicators: RSI={rsi}, MACD={macd}, ATR={atr}, Bollinger Bands Upper={bb_upper}, Middle={bb_middle}, Lower={bb_lower}
-- Support (daily): {support}
-- Resistance (daily): {resistance}
-- Trendline Slope (20-day): {trend_slope}
-- Weekly Summary: Close={weekly_close}, RSI={weekly_rsi}, MACD={weekly_macd}, Volume={weekly_volume}
-- Fundamentals: PE={pe}, ROE={roe}, Debt/Equity={de}, Revenue Growth={rev_growth}
-- News Sentiment Score: {news_score} (0-100, higher = positive)
-- Volume Signal: {volume_signal}
+- Latest Price: {{ latest_price }}
+- Daily Technical Indicators: RSI={{ rsi }}, MACD={{ macd }}, ATR={{ atr }}, Bollinger Bands Upper={{ bb_upper }}, Middle={{ bb_middle }}, Lower={{ bb_lower }}
+- Support (daily): {{ support }}
+- Resistance (daily): {{ resistance }}
+- Trendline Slope (20-day): {{ trend_slope }}
+- Weekly Summary: Close={{ weekly_close }}, RSI={{ weekly_rsi }}, MACD={{ weekly_macd }}, Volume={{ weekly_volume }}
+- Fundamentals: PE={{ pe }}, ROE={{ roe }}, Debt/Equity={{ de }}, Revenue Growth={{ rev_growth }}
+- News Sentiment Score: {{ news_score }} (0-100, higher = positive)
+- Volume Signal: {{ volume_signal }}
 
 Based on the above, provide a **structured JSON** with exactly the following keys (all required). Do not omit any key. Use numbers where appropriate.
 
