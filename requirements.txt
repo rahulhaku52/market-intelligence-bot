@@ -3,7 +3,7 @@ finnhub-python
 newsapi-python
 google-generativeai
 python-telegram-bot
-supabase
+supabase>=2.0.0
 matplotlib
 mplfinance
 pandas
