@@ -1,7 +1,7 @@
 yfinance
 finnhub-python
 newsapi-python
-google-generativeai
+google-genai
 python-telegram-bot
 supabase>=2.0.0
 matplotlib
