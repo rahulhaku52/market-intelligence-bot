@@ -1,10 +1,12 @@
 import os
 import json
-import google.generativeai as genai
+from google import genai
 from jinja2 import Template
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-genai.configure(api_key=os.environ['GEMINI_API_KEY'])
+client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+
+# ... বাকি কোডে model.generate_content-এর জায়গায় client.models.generate_content ব্যবহার করতে হবে।
 model = genai.GenerativeModel('gemini-pro')
 
 def load_prompt(template_path, **kwargs):
