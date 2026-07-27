@@ -29,7 +29,6 @@ from src.scanners.auto_scanner import load_symbols, fetch_volume_batch, scan_vol
 import pandas as pd
 
 def load_tickers(mode):
-    # Always use dynamic scanner from CSV
     symbols = load_symbols()
     if not symbols:
         return []
@@ -56,7 +55,7 @@ def run_full_analysis(ticker, mode):
         else:
             weekly_hist = None
 
-        # Finnhub & News
+        # Finnhub & News (failures handled gracefully)
         f_quote = fetch_quote(ticker)
         today = date.today()
         f_news = fetch_news(ticker, (today - timedelta(2)).isoformat(), today.isoformat())
@@ -116,11 +115,11 @@ def run_full_analysis(ticker, mode):
         )
         risk = compute_risk(confidence, atr_daily/latest_price*100, close_daily.pct_change().std(), gap, 0)
 
-        # Target & StopLoss (will be overridden by AI, but used as fallback)
+        # Target & StopLoss (fallback values, used only if AI misses them)
         target = resistance * 1.05
         stoploss = support * 0.97
 
-        # AI structured report
+        # AI structured report (new god‑level schema)
         analysis_data = {
             'ticker': ticker,
             'latest_price': f"{latest_price:.2f}",
@@ -143,34 +142,50 @@ def run_full_analysis(ticker, mode):
             'rev_growth': rev_growth if rev_growth else 'N/A',
             'news_score': int(sentiment_norm),
             'volume_signal': 'Spike' if vol_spike else 'Normal',
-            # Missing keys added for fallback
+            # fallback keys (used if AI response missing)
             'confidence': confidence,
             'risk': risk,
             'target': target,
             'stoploss': stoploss
         }
+
         ai_response = generate_structured_analysis(analysis_data)
+        if ai_response is None:
+            logger.warning(f"⚠️ AI analysis failed for {ticker}, skipping post")
+            return None
 
         # Build chart
         chart = generate_chart(y_hist, ticker, support, resistance)
 
-        # Build Telegram message (HTML)
+        # ----- God‑Level Telegram Message -----
+        reasons_list = '\n'.join([f"• {r}" for r in ai_response.get('reasons', [])])
+        scenarios = ai_response.get('scenarios', {})
         message = (
             f"📈 <b>{ticker}</b>\n"
             f"━━━━━━━━━━━\n"
-            f"🎯 Short-term Target: {ai_response.get('target_short_term', target)}\n"
-            f"🛑 Short-term SL: {ai_response.get('stop_loss_short_term', stoploss)}\n"
-            f"📈 Long-term Target: {ai_response.get('target_long_term', target)}\n"
-            f"🛑 Long-term SL: {ai_response.get('stop_loss_long_term', stoploss)}\n"
-            f"📊 Confidence: {ai_response.get('confidence', confidence)}%\n"
-            f"⚖ Risk: {ai_response.get('risk', risk)}\n"
-            f"🔹 Entry Zone: {ai_response.get('entry_zone', 'N/A')}\n"
-            f"🚩 Exit Signal: {ai_response.get('exit_signal', 'N/A')}\n"
-            f"📝 {ai_response.get('summary', '')}"
+            f"<b>Timeframe:</b> {ai_response.get('timeframe', 'N/A')}\n"
+            f"<b>Bias:</b> {ai_response.get('bias', '')}\n\n"
+            f"<b>Entry Zone:</b> {ai_response.get('entry_zone', 'N/A')}\n"
+            f"<b>Short-term TP:</b> {ai_response.get('tp_short', 'N/A')} | <b>SL:</b> {ai_response.get('sl_short', 'N/A')}\n"
+            f"<b>Mid-term TP:</b> {ai_response.get('tp_mid', 'N/A')} | <b>SL:</b> {ai_response.get('sl_mid', 'N/A')}\n"
+            f"<b>Long-term TP:</b> {ai_response.get('tp_long', 'N/A')} | <b>SL:</b> {ai_response.get('sl_long', 'N/A')}\n"
+            f"<b>Invalidation:</b> {ai_response.get('invalidation', 'N/A')}\n\n"
+            f"<b>Reasons:</b>\n{reasons_list}\n\n"
+            f"<b>Bull Case:</b> {scenarios.get('bull', 'N/A')}\n"
+            f"<b>Base Case:</b> {scenarios.get('base', 'N/A')}\n"
+            f"<b>Bear Case:</b> {scenarios.get('bear', 'N/A')}\n\n"
+            f"<b>Confidence:</b> {ai_response.get('confidence', confidence)}%\n"
+            f"<b>Risk:</b> {ai_response.get('risk', risk)}\n"
+            f"<b>Data Freshness:</b> {ai_response.get('data_freshness', 'N/A')}\n"
+            f"<b>Status:</b> {ai_response.get('status', 'N/A')}\n\n"
+            f"📝 {ai_response.get('summary', '')}"  # optional extra summary
         )
 
-        record_signal(ticker, mode, latest_price, float(ai_response.get('target_short_term', 0)),
-                      float(ai_response.get('stop_loss_short_term', 0)), confidence)
+        # Record signal for backtesting (using short-term TP/SL)
+        record_signal(ticker, mode, latest_price,
+                      float(ai_response.get('tp_short', 0)),
+                      float(ai_response.get('sl_short', 0)),
+                      confidence)
 
         return {
             'ticker': ticker,
@@ -178,7 +193,7 @@ def run_full_analysis(ticker, mode):
             'chart': chart,
             'confidence': confidence,
             'category': mode,
-            'priority': 100  # top priority
+            'priority': 100
         }
     except Exception as e:
         logger.error(f"Error analyzing {ticker}: {e}")
@@ -194,7 +209,6 @@ def main():
 
     logger.info(f"Starting Dynamic God-Level Scanner (mode={mode})")
 
-    # Backtest evaluation
     try:
         evaluate_closed_signals()
     except Exception as e:
@@ -213,7 +227,7 @@ def main():
         analysis = run_full_analysis(ticker, mode)
         if analysis:
             signals.append(analysis)
-        time.sleep(1)  # avoid rate limits
+        time.sleep(1)
 
     signals = sort_by_priority(signals)
     supabase = get_supabase()
