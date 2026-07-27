@@ -6,15 +6,9 @@ from src.utils.logger import logger
 
 client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-# তোমার দেওয়া মডেলগুলো (যেগুলো আসলে অ্যাক্সেস আছে)
 MODEL_LIST = [
-    'gemini-3.5-flash-lite',   # তুমি বলেছ এটা আছে
-    'gemini-3.6-flash',
-    'gemini-3.1-pro',
-    # যদি এগুলো ফেইল করে, তাহলে আরও কিছু কমন ফ্রি মডেল ট্রাই করতে পারো
-    'gemini-2.0-flash',        # ব্যাকআপ
-    'gemini-1.5-flash-lite',   # পুরনো কিন্তু ফ্রি
-    'gemini-1.5-flash',
+    'gemini-2.0-flash',          # free tier (but rate-limited)
+    'gemini-1.5-flash',          # deprecated but may work
 ]
 
 def load_prompt(template_path, **kwargs):
@@ -38,7 +32,11 @@ def generate_structured_analysis(analysis_data):
             elif '```' in text:
                 text = text.split('```')[1].strip()
             parsed = json.loads(text)
-            required = ['trend', 'confidence', 'risk', 'target', 'stop_loss', 'summary']
+            # Required keys matching the prompt
+            required = ['trend', 'confidence', 'risk',
+                        'target_short_term', 'stop_loss_short_term',
+                        'target_long_term', 'stop_loss_long_term',
+                        'entry_zone', 'exit_signal', 'summary']
             for r in required:
                 if r not in parsed:
                     raise ValueError(f"Missing key {r}")
@@ -46,14 +44,20 @@ def generate_structured_analysis(analysis_data):
         except Exception as e:
             last_error = e
             logger.warning(f"Model {model_name} failed: {e}")
-            time.sleep(1)
+            time.sleep(1)  # small delay before next model
             continue
+
+    # All models failed, use fallback using values from analysis_data
     logger.error(f"All Gemini models failed. Last error: {last_error}")
     return {
         'trend': 'Neutral',
-        'confidence': analysis_data['confidence'],
-        'risk': analysis_data['risk'],
-        'target': analysis_data['target'],
-        'stop_loss': analysis_data['stoploss'],
-        'summary': 'AI analysis temporarily unavailable. Please check model availability.'
+        'confidence': analysis_data.get('confidence', 50),
+        'risk': analysis_data.get('risk', 'Medium'),
+        'target_short_term': analysis_data.get('target', 'N/A'),
+        'stop_loss_short_term': analysis_data.get('stoploss', 'N/A'),
+        'target_long_term': analysis_data.get('target', 'N/A'),
+        'stop_loss_long_term': analysis_data.get('stoploss', 'N/A'),
+        'entry_zone': 'N/A',
+        'exit_signal': 'N/A',
+        'summary': 'AI analysis temporarily unavailable.'
     }
