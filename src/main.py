@@ -116,6 +116,10 @@ def run_full_analysis(ticker, mode):
         )
         risk = compute_risk(confidence, atr_daily/latest_price*100, close_daily.pct_change().std(), gap, 0)
 
+        # Target & StopLoss (will be overridden by AI, but used as fallback)
+        target = resistance * 1.05
+        stoploss = support * 0.97
+
         # AI structured report
         analysis_data = {
             'ticker': ticker,
@@ -138,7 +142,12 @@ def run_full_analysis(ticker, mode):
             'de': de if de else 'N/A',
             'rev_growth': rev_growth if rev_growth else 'N/A',
             'news_score': int(sentiment_norm),
-            'volume_signal': 'Spike' if vol_spike else 'Normal'
+            'volume_signal': 'Spike' if vol_spike else 'Normal',
+            # Missing keys added for fallback
+            'confidence': confidence,
+            'risk': risk,
+            'target': target,
+            'stoploss': stoploss
         }
         ai_response = generate_structured_analysis(analysis_data)
 
@@ -149,10 +158,10 @@ def run_full_analysis(ticker, mode):
         message = (
             f"📈 <b>{ticker}</b>\n"
             f"━━━━━━━━━━━\n"
-            f"🎯 Short-term Target: {ai_response.get('target_short_term', 'N/A')}\n"
-            f"🛑 Short-term SL: {ai_response.get('stop_loss_short_term', 'N/A')}\n"
-            f"📈 Long-term Target: {ai_response.get('target_long_term', 'N/A')}\n"
-            f"🛑 Long-term SL: {ai_response.get('stop_loss_long_term', 'N/A')}\n"
+            f"🎯 Short-term Target: {ai_response.get('target_short_term', target)}\n"
+            f"🛑 Short-term SL: {ai_response.get('stop_loss_short_term', stoploss)}\n"
+            f"📈 Long-term Target: {ai_response.get('target_long_term', target)}\n"
+            f"🛑 Long-term SL: {ai_response.get('stop_loss_long_term', stoploss)}\n"
             f"📊 Confidence: {ai_response.get('confidence', confidence)}%\n"
             f"⚖ Risk: {ai_response.get('risk', risk)}\n"
             f"🔹 Entry Zone: {ai_response.get('entry_zone', 'N/A')}\n"
