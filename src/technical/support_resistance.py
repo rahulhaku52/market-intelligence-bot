@@ -1,11 +1,6 @@
 import numpy as np
 
 def find_levels(series, window=5, cluster_threshold=0.02):
-    """
-    Find support (minima) and resistance (maxima) levels.
-    Uses positional indexing (iloc) to avoid KeyError with datetime index.
-    Returns (supports, resistances)
-    """
     if len(series) < window * 2:
         return [], []
 
@@ -32,11 +27,10 @@ def find_levels(series, window=5, cluster_threshold=0.02):
         if is_min:
             minima.append(prices[i])
 
-    # Cluster nearby levels
     maxima = cluster_levels(maxima, cluster_threshold)
     minima = cluster_levels(minima, cluster_threshold)
 
-    return minima, maxima  # supports (minima), resistances (maxima)
+    return minima, maxima  # supports, resistances
 
 def cluster_levels(levels, threshold):
     if not levels:
