@@ -1,4 +1,4 @@
-import argparse, os, time, json
+import argparse, os, time, json, traceback
 from datetime import date, timedelta, datetime
 import pytz
 from src.utils.logger import logger
@@ -93,19 +93,31 @@ def multi_timeframe_agreement(df):
 def run_full_analysis(ticker, mode):
     logger.info(f"🔍 God-Level Analysis: {ticker}")
     try:
+        # 1. Yahoo Fetch
         y_hist, y_info = yfetch(ticker)
         if y_hist is None or y_hist.empty:
-            logger.warning(f"No Yahoo data for {ticker}, trying Finnhub fallback")
-            f_quote = fetch_quote(ticker)
+            logger.warning(f"No Yahoo data for {ticker}, skipping.")
             return None
         y_hist = clean_historical(y_hist)
+        if y_hist is None or y_hist.empty:
+            logger.warning(f"Yahoo data empty after cleaning for {ticker}")
+            return None
+
+        # 2. Clean info
         y_info = clean_info(y_info)
+
+        # 3. Finnhub (safe, returns None/[] on error)
         f_quote = fetch_quote(ticker)
         today = date.today()
         f_news = fetch_news(ticker, (today - timedelta(2)).isoformat(), today.isoformat())
+
+        # 4. NewsAPI (safe, returns [])
         n_articles = newsapi_fetch(ticker.replace('.NS', ''), (today - timedelta(2)).isoformat(), today.isoformat())
+
+        # 5. Merge data (just dictionary)
         data = merge(ticker, y_hist, y_info, f_quote, n_articles, f_news)
 
+        # 6. Technical calculations
         close = y_hist['Close']
         latest_price = close.iloc[-1]
 
@@ -113,6 +125,7 @@ def run_full_analysis(ticker, mode):
         mtf = multi_timeframe_agreement(y_hist)
         tech_score = int(tech_score * 0.9 + mtf * 0.1)
 
+        # 7. Fundamental
         fund = extract_fundamentals(y_info)
         fund_score = 50
         pe = fund.get('PE')
@@ -124,20 +137,24 @@ def run_full_analysis(ticker, mode):
         if roe and roe > 0.15: fund_score += 20
         fund_score = max(0, min(100, fund_score))
 
+        # 8. News sentiment
         all_articles = n_articles + [{'title': a['headline'], 'description': a['summary'], 'source': {'name': 'Finnhub'}} for a in f_news]
         all_articles = remove_duplicates(all_articles)
         all_articles = weight_articles(all_articles)
         sentiment = score_articles(all_articles)
         sentiment_norm = (sentiment + 30) / 60 * 100
 
+        # 9. Volume & Gap
         vol_spike = detect_volume_spike(y_hist)
         gap = detect_gap(y_hist)
         vol_score = 90 if vol_spike else (70 if gap else 50)
 
+        # 10. Market / sector alignment
         market_align = get_market_alignment(ticker)
         sector_align = get_sector_alignment(ticker)
         earnings_penalty = get_earnings_penalty(ticker)
 
+        # 11. Confidence & Risk
         confidence = compute_confidence(
             tech_score, fund_score, sentiment_norm, vol_score,
             market_align, sector_align, earnings_penalty, mtf
@@ -156,6 +173,7 @@ def run_full_analysis(ticker, mode):
         target = resistance * 1.05
         stoploss = support * 0.97
 
+        # 12. AI analysis
         analysis_data = {
             'technical_score': tech_score,
             'fundamental_score': fund_score,
@@ -170,8 +188,10 @@ def run_full_analysis(ticker, mode):
         }
         ai_response = generate_structured_analysis(analysis_data)
 
+        # 13. Chart
         chart = generate_chart(y_hist, ticker, support, resistance)
 
+        # 14. Build message
         message = (
             f"📈 *{ticker}*\n"
             f"━━━━━━━━━━━\n"
@@ -182,6 +202,7 @@ def run_full_analysis(ticker, mode):
             f"{ai_response.get('summary', '')}"
         )
 
+        # 15. Backtest recording
         record_signal(ticker, mode, latest_price, target, stoploss, confidence)
 
         return {
@@ -194,6 +215,7 @@ def run_full_analysis(ticker, mode):
         }
     except Exception as e:
         logger.error(f"Error analyzing {ticker}: {e}")
+        logger.error(traceback.format_exc())
         return None
 
 def main():
