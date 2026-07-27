@@ -15,12 +15,13 @@ def load_prompt(template_path, **kwargs):
 def generate_structured_analysis(analysis_data):
     prompt = load_prompt('prompts/explain.txt', **analysis_data)
     try:
-        # Use a stable model (gemini-2.5-flash might be deprecated for new users)
+        # Use gemini-2.0-flash (free, available) — NOT the deprecated 1.5 flash
         response = client.models.generate_content(
-            model='gemini-1.5-flash',   # widely available free model
+            model='gemini-2.0-flash',
             contents=prompt
         )
         text = response.text
+        # Extract JSON from possible markdown code block
         if '```json' in text:
             text = text.split('```json')[1].split('```')[0].strip()
         elif '```' in text:
