@@ -19,7 +19,8 @@ def record_signal(ticker, signal_type, entry, target, stoploss, confidence, expi
 
 def evaluate_closed_signals():
     supabase = get_supabase()
-    open_trades = supabase.table('backtest_results').eq('status', 'open').execute()
+    # Use proper v2.0 syntax: select('*').eq('column', value)
+    open_trades = supabase.table('backtest_results').select('*').eq('status', 'open').execute()
     for trade in open_trades.data:
         ticker = trade['ticker']
         entry = trade['entry_price']
