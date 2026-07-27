@@ -1,0 +1,13 @@
+yfinance
+finnhub-python
+newsapi-python
+google-generativeai
+python-telegram-bot
+supabase
+matplotlib
+mplfinance
+pandas
+numpy
+PyYAML
+httpx
+python-dotenv
