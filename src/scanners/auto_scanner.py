@@ -1,47 +1,29 @@
+import csv
+import os
 import yfinance as yf
 from src.utils.logger import logger
 
-# Nifty 200 stocks (as of 2025). You never need to touch this.
-NIFTY200 = [
-    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "HINDUNILVR.NS",
-    "ICICIBANK.NS", "KOTAKBANK.NS", "SBIN.NS", "BHARTIARTL.NS", "ITC.NS",
-    "LT.NS", "AXISBANK.NS", "SUNPHARMA.NS", "BAJFINANCE.NS", "MARUTI.NS",
-    "TITAN.NS", "ASIANPAINT.NS", "HCLTECH.NS", "WIPRO.NS", "NESTLEIND.NS",
-    "POWERGRID.NS", "ULTRACEMCO.NS", "M&M.NS", "NTPC.NS", "DRREDDY.NS",
-    "BAJAJFINSV.NS", "JSWSTEEL.NS", "TATAMOTORS.NS", "ONGC.NS", "COALINDIA.NS",
-    "HEROMOTOCO.NS", "IOC.NS", "SHREECEM.NS", "BRITANNIA.NS", "DIVISLAB.NS",
-    "CIPLA.NS", "UPL.NS", "EICHERMOT.NS", "TATASTEEL.NS", "HDFCLIFE.NS",
-    "GRASIM.NS", "SBILIFE.NS", "APOLLOHOSP.NS", "BAJAJ-AUTO.NS", "PIDILITIND.NS",
-    "MARICO.NS", "DABUR.NS", "GODREJCP.NS", "COLPAL.NS", "BERGEPAINT.NS",
-    "INDUSINDBK.NS", "HDFC.NS", "TATACONSUM.NS", "TECHM.NS", "BPCL.NS",
-    "HAL.NS", "ADANIENT.NS", "ADANIPORTS.NS", "AMBUJACEM.NS", "ZOMATO.NS",
-    "DMART.NS", "GODREJPROP.NS", "VEDL.NS", "PFC.NS", "RECLTD.NS",
-    "ABCAPITAL.NS", "CANBK.NS", "SAIL.NS", "PNB.NS", "BANKBARODA.NS",
-    "BHEL.NS", "HINDZINC.NS", "MUTHOOTFIN.NS", "ICICIPRULI.NS", "SRTRANSFIN.NS",
-    "BIOCON.NS", "TORNTPHARM.NS", "LUPIN.NS", "AUROPHARMA.NS", "GLAND.NS",
-    "ABBOTINDIA.NS", "SANOFI.NS", "PGHH.NS", "GILLETTE.NS", "VBL.NS",
-    "HAVELLS.NS", "SIEMENS.NS", "ABB.NS", "CUMMINSIND.NS", "BEL.NS",
-    "BHARATFORG.NS", "TRENT.NS", "TVSMOTOR.NS", "EIHOTEL.NS", "INDHOTEL.NS",
-    "PAGEIND.NS", "KAJARIACER.NS", "ASTRAL.NS", "POLYCAB.NS", "VOLTAS.NS",
-    "BLUESTARCO.NS", "WHIRLPOOL.NS", "IFBIND.NS", "JKCEMENT.NS", "RAMCOCEM.NS",
-    "DALBHARAT.NS", "JKLAKSHMI.NS", "ESSAR-RE.NS"  # ignore delisted, just example
-]
-
-def get_symbols():
-    """Return the universe of stocks to scan."""
-    return NIFTY200
+def load_symbols(csv_path='data/nifty500.csv'):
+    symbols = []
+    if not os.path.exists(csv_path):
+        logger.error(f"CSV file not found: {csv_path}")
+        return symbols
+    with open(csv_path, 'r') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if row:
+                symbols.append(row[0].strip())
+    return symbols
 
 def fetch_volume_batch(symbols, period="1mo"):
-    """Download daily volume for a list of symbols in one call."""
     try:
-        df = yf.download(tickers=symbols, period=period, group_by='ticker', threads=True, progress=False)
-        return df
+        data = yf.download(tickers=symbols, period=period, group_by='ticker', threads=True, progress=False)
+        return data
     except Exception as e:
-        logger.error(f"Batch volume fetch failed: {e}")
+        logger.error(f"Batch fetch failed: {e}")
         return None
 
-def scan_volume_spikes(batch_data, min_ratio=2.0, top_n=5):
-    """Return top N tickers with unusual volume."""
+def scan_volume_spikes(batch_data, min_ratio=2.0, top_n=3):
     spikes = []
     if batch_data is None:
         return spikes
