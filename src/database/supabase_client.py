@@ -16,8 +16,6 @@ def get_supabase() -> Client:
 
     try:
         client = create_client(url, key)
-        # We no longer run a health check here; just return the client.
-        # Later queries will handle errors gracefully.
         return client
     except Exception as e:
         print(f"❌ Failed to create Supabase client: {e}")
