@@ -42,7 +42,7 @@ def load_tickers(mode):
 def get_market_alignment(ticker):
     # Compare stock with Nifty50
     try:
-        nifty_hist, _ = yfetch('^NSEI', period='5d')  # Nifty 50 index
+        nifty_hist, _ = yfetch('^NSEI', period='5d')
         if nifty_hist is None or nifty_hist.empty:
             return 50
         nifty_ret = nifty_hist['Close'].pct_change().iloc[-1]
@@ -58,58 +58,59 @@ def get_market_alignment(ticker):
         return 50
 
 def get_sector_alignment(ticker):
-    # Placeholder: can map ticker to sector ETF, here just return 50
+    # Placeholder: map ticker to sector ETF
     return 50
 
 def get_earnings_penalty(ticker):
-    # Simple: if earnings within next 5 days? We'll use Finnhub earnings calendar (free limited)
-    # For now, return 0
+    # Placeholder: check earnings in next 5 days
     return 0
 
 def multi_timeframe_agreement(df):
     if df is None or df.empty:
         return 0
-    # compute trend on 1d, 1w
     close = df['Close']
     ema20 = ema(close, 20)
     current = close.iloc[-1]
     daily_trend = current > ema20.iloc[-1]
-    # weekly: resample
     weekly = close.resample('W').last().dropna()
-    if len(weekly) < 2: weekly_trend = daily_trend
+    if len(weekly) < 2:
+        weekly_trend = daily_trend
     else:
         ema20_w = ema(weekly, 5)
         weekly_trend = weekly.iloc[-1] > ema20_w.iloc[-1]
-    if daily_trend and weekly_trend: return 100
-    elif daily_trend or weekly_trend: return 50
-    else: return 0
+    if daily_trend and weekly_trend:
+        return 100
+    elif daily_trend or weekly_trend:
+        return 50
+    else:
+        return 0
 
 def run_full_analysis(ticker, mode):
     logger.info(f"🔍 God-Level Analysis: {ticker}")
     try:
-        # Fetch with failover (already retry)
+        # Fetch data
         y_hist, y_info = yfetch(ticker)
         if y_hist is None or y_hist.empty:
             logger.warning(f"No Yahoo data for {ticker}, trying Finnhub fallback")
             f_quote = fetch_quote(ticker)
-            # In real scenario, we'd need historical from somewhere else
+            # Fallback: can't get historical, skip
             return None
         y_hist = clean_historical(y_hist)
         y_info = clean_info(y_info)
         f_quote = fetch_quote(ticker)
         today = date.today()
-        f_news = fetch_news(ticker, (today-timedelta(2)).isoformat(), today.isoformat())
-        n_articles = newsapi_fetch(ticker.replace('.NS',''), (today-timedelta(2)).isoformat(), today.isoformat())
+        f_news = fetch_news(ticker, (today - timedelta(2)).isoformat(), today.isoformat())
+        n_articles = newsapi_fetch(ticker.replace('.NS', ''), (today - timedelta(2)).isoformat(), today.isoformat())
         data = merge(ticker, y_hist, y_info, f_quote, n_articles, f_news)
 
         close = y_hist['Close']
         latest_price = close.iloc[-1]
 
-        # Technical (full)
+        # Technical
         tech_score = technical_score(y_hist, latest_price)
-        # multi-timeframe agreement
         mtf = multi_timeframe_agreement(y_hist)
-        
+        tech_score = int(tech_score * 0.9 + mtf * 0.1)  # blend with MTF agreement
+
         # Fundamental
         fund = extract_fundamentals(y_info)
         fund_score = 50
@@ -122,13 +123,12 @@ def run_full_analysis(ticker, mode):
         if roe and roe > 0.15: fund_score += 20
         fund_score = max(0, min(100, fund_score))
 
-        # News processing (enhanced)
+        # News processing
         all_articles = n_articles + [{'title': a['headline'], 'description': a['summary'], 'source': {'name': 'Finnhub'}} for a in f_news]
         all_articles = remove_duplicates(all_articles)
         all_articles = weight_articles(all_articles)
-        # Sentiment with source weight
-        sentiment = score_articles(all_articles)  # adjusted in score_articles to use source_weight
-        sentiment_norm = (sentiment + 30) / 60 * 100  # 0-100
+        sentiment = score_articles(all_articles)
+        sentiment_norm = (sentiment + 30) / 60 * 100
 
         # Volume
         vol_spike = detect_volume_spike(y_hist)
@@ -154,10 +154,9 @@ def run_full_analysis(ticker, mode):
         atr_val = atr(y_hist).iloc[-1]
         atr_pct = atr_val / latest_price * 100
         volatility = close.pct_change().std()
-        news_risk = sum(1 for a in all_articles if classify_event(a) in ['geopolitical','rbi_policy']) * 5
+        news_risk = sum(1 for a in all_articles if classify_event(a) in ['geopolitical', 'rbi_policy']) * 5
         risk = compute_risk(confidence, atr_pct, volatility, gap, news_risk)
 
-        # Target / Stop
         target = resistance * 1.05
         stoploss = support * 0.97
 
@@ -166,7 +165,7 @@ def run_full_analysis(ticker, mode):
             'technical_score': tech_score,
             'fundamental_score': fund_score,
             'news_score': int(sentiment_norm),
-            'volume_signal': 'Spike' if vol_spike else ('Gap_'+gap if gap else 'Normal'),
+            'volume_signal': 'Spike' if vol_spike else ('Gap_' + gap if gap else 'Normal'),
             'confidence': confidence,
             'risk': risk,
             'support': support,
@@ -176,13 +175,18 @@ def run_full_analysis(ticker, mode):
         }
         ai_response = generate_structured_analysis(analysis_data)
 
-        # Chart
         chart = generate_chart(y_hist, ticker, support, resistance)
 
-        # Telegram message
-        message = f"📈 *{ticker}*\n━━━━━━━━━━━\n🎯 Target: {ai_response.get('target', target):.2f}\n🛑 Stop Loss: {ai_response.get('stop_loss', stoploss):.2f}\n📊 Confidence: {ai_response.get('confidence', confidence)}%\n⚖ Risk: {ai_response.get('risk', risk)}\n\n{ai_response.get('summary', '')}"
+        message = (
+            f"📈 *{ticker}*\n"
+            f"━━━━━━━━━━━\n"
+            f"🎯 Target: {ai_response.get('target', target):.2f}\n"
+            f"🛑 Stop Loss: {ai_response.get('stop_loss', stoploss):.2f}\n"
+            f"📊 Confidence: {ai_response.get('confidence', confidence)}%\n"
+            f"⚖ Risk: {ai_response.get('risk', risk)}\n\n"
+            f"{ai_response.get('summary', '')}"
+        )
 
-        # Backtesting: record signal
         record_signal(ticker, mode, latest_price, target, stoploss, confidence)
 
         return {
@@ -200,12 +204,15 @@ def run_full_analysis(ticker, mode):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', required=True)
+    parser.add_argument('--force', action='store_true', help='Force run even if market closed')
     args = parser.parse_args()
     mode = args.mode
-    logger.info(f"Starting God-Level Pipeline v2.0 for {mode}")
+    force = args.force
 
-    if not is_market_open():
-        logger.info("Market closed or holiday. Skipping analysis.")
+    logger.info(f"Starting God-Level Pipeline v2.0 for {mode} (force={force})")
+
+    if not force and not is_market_open():
+        logger.info("Market closed or holiday. Skipping analysis. Use --force to override.")
         return
 
     # Evaluate closed backtest signals before new analysis
@@ -223,7 +230,6 @@ def main():
             continue
         analysis = run_full_analysis(ticker, mode)
         if analysis:
-            # Priority mapping
             if mode == 'breaking_news': analysis['priority'] = 100
             elif mode == 'high_volume': analysis['priority'] = 95
             elif mode == 'watchlist': analysis['priority'] = 90
@@ -245,7 +251,7 @@ def main():
                 'report_summary': sig['message'][:200]
             }).execute()
             logger.info(f"✅ Posted {sig['ticker']}")
-            time.sleep(2)  # flood control
+            time.sleep(2)
         except Exception as e:
             logger.error(f"Failed to send {sig['ticker']}: {e}")
 
