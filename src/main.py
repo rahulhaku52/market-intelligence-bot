@@ -116,7 +116,11 @@ def run_full_analysis(ticker, mode):
         )
         risk = compute_risk(confidence, atr_daily/latest_price*100, close_daily.pct_change().std(), gap, 0)
 
-        # AI structured report
+        # ---- FIX: Define target and stoploss before using them ----
+        target = resistance * 1.05
+        stoploss = support * 0.97
+
+        # AI structured report (new god‑level schema)
         analysis_data = {
             'ticker': ticker,
             'latest_price': f"{latest_price:.2f}",
@@ -141,8 +145,8 @@ def run_full_analysis(ticker, mode):
             'volume_signal': 'Spike' if vol_spike else 'Normal',
             'confidence': confidence,
             'risk': risk,
-            'target': target,
-            'stoploss': stoploss
+            'target': target,         # now defined
+            'stoploss': stoploss      # now defined
         }
 
         ai_response = generate_structured_analysis(analysis_data)
@@ -153,7 +157,7 @@ def run_full_analysis(ticker, mode):
         # Build chart
         chart = generate_chart(y_hist, ticker, support, resistance)
 
-        # God‑Level Telegram Message
+        # ----- God‑Level Telegram Message -----
         reasons_list = '\n'.join([f"• {r}" for r in ai_response.get('reasons', [])])
         scenarios = ai_response.get('scenarios', {})
         message = (
@@ -174,9 +178,10 @@ def run_full_analysis(ticker, mode):
             f"<b>Risk:</b> {ai_response.get('risk', risk)}\n"
             f"<b>Data Freshness:</b> {ai_response.get('data_freshness', 'N/A')}\n"
             f"<b>Status:</b> {ai_response.get('status', 'N/A')}\n\n"
-            f"📝 {ai_response.get('summary', '')}"
+            f"📝 {ai_response.get('summary', '')}"  # optional extra summary
         )
 
+        # Record signal for backtesting (using short-term TP/SL)
         record_signal(ticker, mode, latest_price,
                       float(ai_response.get('tp_short', 0)),
                       float(ai_response.get('sl_short', 0)),
