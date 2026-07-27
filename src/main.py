@@ -192,15 +192,15 @@ def run_full_analysis(ticker, mode):
         chart = generate_chart(y_hist, ticker, support, resistance)
 
         # 14. Build message
-        message = (
-    f"📈 <b>{ticker}</b>\n"
-    f"━━━━━━━━━━━\n"
-    f"🎯 Target: {ai_response.get('target', target):.2f}\n"
-    f"🛑 Stop Loss: {ai_response.get('stop_loss', stoploss):.2f}\n"
-    f"📊 Confidence: {ai_response.get('confidence', confidence)}%\n"
-    f"⚖ Risk: {ai_response.get('risk', risk)}\n\n"
-    f"{ai_response.get('summary', '')}"
-)
+               message = (
+            f"📈 <b>{ticker}</b>\n"
+            f"━━━━━━━━━━━\n"
+            f"🎯 Target: {ai_response.get('target', target):.2f}\n"
+            f"🛑 Stop Loss: {ai_response.get('stop_loss', stoploss):.2f}\n"
+            f"📊 Confidence: {ai_response.get('confidence', confidence)}%\n"
+            f"⚖ Risk: {ai_response.get('risk', risk)}\n\n"
+            f"{ai_response.get('summary', '')}"
+        )
 
         # 15. Backtest recording
         record_signal(ticker, mode, latest_price, target, stoploss, confidence)
