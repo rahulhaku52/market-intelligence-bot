@@ -1,0 +1,13 @@
+schedule:
+  8: large_cap
+  9: mid_cap
+  # বাকি ম্যাপিং...
+
+tickers:
+  large_cap:
+    - RELIANCE.NS
+    - TCS.NS
+    - HDFCBANK.NS
+    - INFY.NS
+    - HINDUNILVR.NS
+  # ... বাকি ক্যাটাগরি
