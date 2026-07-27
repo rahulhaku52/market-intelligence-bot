@@ -1,32 +1,39 @@
-You are a senior stock market analyst. Analyze the following data for {ticker}:
+You are a senior Indian stock market analyst. Analyze the following data for {ticker} and provide a detailed, professional trading/investment report.
 
+Data:
 - Latest Price: {latest_price}
-- Daily Technical Indicators (last 3 months):
-  RSI: {rsi}
-  MACD: {macd}
-  ATR: {atr}
-  Bollinger Bands: Upper={bb_upper}, Middle={bb_middle}, Lower={bb_lower}
-  Support: {support} (from daily levels)
-  Resistance: {resistance} (from daily levels)
-  Trendline Slope (20-day): {trend_slope}
-- Weekly Data Summary (last 6 months):
-  Weekly Close: {weekly_close}
-  Weekly RSI: {weekly_rsi}
-  Weekly MACD: {weekly_macd}
-  Weekly Volume: {weekly_volume}
-- Fundamental Ratios:
-  PE: {pe}, ROE: {roe}, Debt/Equity: {de}, Revenue Growth: {rev_growth}
+- Daily Technical Indicators: RSI={rsi}, MACD={macd}, ATR={atr}, Bollinger Bands Upper={bb_upper}, Middle={bb_middle}, Lower={bb_lower}
+- Support (daily): {support}
+- Resistance (daily): {resistance}
+- Trendline Slope (20-day): {trend_slope}
+- Weekly Summary: Close={weekly_close}, RSI={weekly_rsi}, MACD={weekly_macd}, Volume={weekly_volume}
+- Fundamentals: PE={pe}, ROE={roe}, Debt/Equity={de}, Revenue Growth={rev_growth}
 - News Sentiment Score: {news_score} (0-100, higher = positive)
 - Volume Signal: {volume_signal}
 
-Based on the above, provide a **structured JSON** with the following keys:
-- "trend": overall trend ("Bullish", "Bearish", "Neutral")
-- "confidence": 0-100
-- "risk": "Low", "Medium", "High"
-- "target_short_term": price target for 1-4 weeks
-- "stop_loss_short_term": stop loss for short term
-- "target_long_term": price target for 3-12 months
-- "stop_loss_long_term": stop loss for long term
-- "entry_zone": best buy zone now
-- "exit_signal": when to sell/partial exit
-- "summary": 250-character summary explaining the logic
+Based on the above, provide a **structured JSON** with exactly the following keys (all required). Do not omit any key. Use numbers where appropriate.
+
+```json
+{{
+  "trend": "Bullish/Bearish/Neutral",
+  "bias": "Detailed bias explanation (1-2 sentences)",
+  "timeframe": "1W Swing / 1M Positional / 1Y Investment",
+  "entry_zone": "price range (e.g., 5900-6020)",
+  "tp_short": price target for 1-2 weeks,
+  "sl_short": stop loss for short term,
+  "tp_mid": price target for 1-3 months,
+  "sl_mid": stop loss for medium term,
+  "tp_long": price target for 6-12 months,
+  "sl_long": stop loss for long term,
+  "invalidation": "Condition when the view becomes invalid (e.g., close below 5800)",
+  "reasons": ["reason 1", "reason 2", "reason 3", "reason 4"],
+  "scenarios": {{
+    "bull": "Description of bull case",
+    "base": "Description of base case",
+    "bear": "Description of bear case"
+  }},
+  "confidence": 0-100,
+  "risk": "Low/Medium/High",
+  "data_freshness": "Data as of today's date (auto-fill)",
+  "status": "valid"
+}}
