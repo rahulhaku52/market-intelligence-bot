@@ -13,8 +13,8 @@ Data:
 
 Based on the above, provide a **structured JSON** with exactly the following keys (all required). Do not omit any key. Use numbers where appropriate.
 
-```json
-{{
+{% raw %}
+{
   "trend": "Bullish/Bearish/Neutral",
   "bias": "Detailed bias explanation (1-2 sentences)",
   "timeframe": "1W Swing / 1M Positional / 1Y Investment",
@@ -27,13 +27,16 @@ Based on the above, provide a **structured JSON** with exactly the following key
   "sl_long": stop loss for long term,
   "invalidation": "Condition when the view becomes invalid (e.g., close below 5800)",
   "reasons": ["reason 1", "reason 2", "reason 3", "reason 4"],
-  "scenarios": {{
+  "scenarios": {
     "bull": "Description of bull case",
     "base": "Description of base case",
     "bear": "Description of bear case"
-  }},
+  },
   "confidence": 0-100,
   "risk": "Low/Medium/High",
   "data_freshness": "Data as of today's date (auto-fill)",
   "status": "valid"
-}}
+}
+{% endraw %}
+
+Make sure the JSON is valid. Only respond with the JSON, no additional text.
