@@ -6,9 +6,11 @@ from src.utils.logger import logger
 
 client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
+# Use the models you have access to: 3.5 Flash-Lite (fastest), 3.6 Flash (all-around), 3.1 Pro (advanced) - though 3.1 Pro may not support generateContent yet, we'll try.
 MODEL_LIST = [
-    'gemini-2.0-flash',          # free tier (but rate-limited)
-    'gemini-1.5-flash',          # deprecated but may work
+    'gemini-3.5-flash-lite',
+    'gemini-3.6-flash',
+    # 'gemini-3.1-pro',  # may return 404, so can skip or keep but handle
 ]
 
 def load_prompt(template_path, **kwargs):
@@ -27,37 +29,31 @@ def generate_structured_analysis(analysis_data):
                 contents=prompt
             )
             text = response.text
+            # Extract JSON from markdown code block if present
             if '```json' in text:
                 text = text.split('```json')[1].split('```')[0].strip()
             elif '```' in text:
                 text = text.split('```')[1].strip()
             parsed = json.loads(text)
-            # Required keys matching the prompt
-            required = ['trend', 'confidence', 'risk',
-                        'target_short_term', 'stop_loss_short_term',
-                        'target_long_term', 'stop_loss_long_term',
-                        'entry_zone', 'exit_signal', 'summary']
-            for r in required:
-                if r not in parsed:
-                    raise ValueError(f"Missing key {r}")
+            # Required keys for god-level report
+            required = [
+                'trend', 'bias', 'timeframe', 'entry_zone',
+                'tp_short', 'sl_short', 'tp_mid', 'sl_mid',
+                'tp_long', 'sl_long', 'invalidation', 'reasons',
+                'scenarios', 'confidence', 'risk', 'data_freshness', 'status'
+            ]
+            for key in required:
+                if key not in parsed:
+                    raise ValueError(f"Missing key: {key}")
+            # Add default data_freshness if missing
+            parsed['data_freshness'] = parsed.get('data_freshness', 'N/A')
             return parsed
         except Exception as e:
             last_error = e
             logger.warning(f"Model {model_name} failed: {e}")
-            time.sleep(1)  # small delay before next model
+            time.sleep(1)  # avoid rate limits
             continue
 
-    # All models failed, use fallback using values from analysis_data
+    # If all models fail, return None (we will not post)
     logger.error(f"All Gemini models failed. Last error: {last_error}")
-    return {
-        'trend': 'Neutral',
-        'confidence': analysis_data.get('confidence', 50),
-        'risk': analysis_data.get('risk', 'Medium'),
-        'target_short_term': analysis_data.get('target', 'N/A'),
-        'stop_loss_short_term': analysis_data.get('stoploss', 'N/A'),
-        'target_long_term': analysis_data.get('target', 'N/A'),
-        'stop_loss_long_term': analysis_data.get('stoploss', 'N/A'),
-        'entry_zone': 'N/A',
-        'exit_signal': 'N/A',
-        'summary': 'AI analysis temporarily unavailable.'
-    }
+    return None  # signal that we couldn't get analysis
