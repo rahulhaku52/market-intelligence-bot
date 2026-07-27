@@ -1,0 +1,80 @@
+name: Market Intelligence Bot
+
+on:
+  schedule:
+    - cron: '30 2 * * *'   # 08:00 IST Large Cap
+    - cron: '30 3 * * *'   # 09:00 IST Mid Cap
+    - cron: '30 4 * * *'   # 10:00 IST Small Cap
+    - cron: '30 5 * * *'   # 11:00 IST ETF
+    - cron: '30 6 * * *'   # 12:00 IST Mutual Fund
+    - cron: '30 7 * * *'   # 13:00 IST Banking
+    - cron: '30 8 * * *'   # 14:00 IST Pharma
+    - cron: '30 9 * * *'   # 15:00 IST Auto
+    - cron: '30 10 * * *'  # 16:00 IST IT
+    - cron: '30 11 * * *'  # 17:00 IST Defence
+    - cron: '30 12 * * *'  # 18:00 IST High Volume
+    - cron: '30 13 * * *'  # 19:00 IST Breaking News
+    - cron: '30 14 * * *'  # 20:00 IST Gold
+    - cron: '30 15 * * *'  # 21:00 IST Watchlist
+    - cron: '30 16 * * *'  # 22:00 IST Top Gainers
+    - cron: '30 17 * * *'  # 23:00 IST Top Losers
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Analysis mode'
+        required: true
+
+concurrency: market-bot-run
+
+jobs:
+  run-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Determine mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
+          else
+            HOUR=$(date +%H)
+            MINUTE=$(date +%M)
+            case "$HOUR:$MINUTE" in
+              "02:30") MODE="large_cap" ;;
+              "03:30") MODE="mid_cap" ;;
+              "04:30") MODE="small_cap" ;;
+              "05:30") MODE="etf" ;;
+              "06:30") MODE="mutual_fund" ;;
+              "07:30") MODE="banking" ;;
+              "08:30") MODE="pharma" ;;
+              "09:30") MODE="auto" ;;
+              "10:30") MODE="it" ;;
+              "11:30") MODE="defence" ;;
+              "12:30") MODE="high_volume" ;;
+              "13:30") MODE="breaking_news" ;;
+              "14:30") MODE="gold" ;;
+              "15:30") MODE="watchlist" ;;
+              "16:30") MODE="top_gainers" ;;
+              "17:30") MODE="top_losers" ;;
+              *) MODE="large_cap" ;;
+            esac
+            echo "mode=$MODE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run God-Level Bot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: python src/main.py --mode "${{ steps.mode.outputs.mode }}"
