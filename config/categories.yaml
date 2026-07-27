@@ -44,7 +44,7 @@ tickers:
     - DRREDDY.NS
   auto:
     - MARUTI.NS
-    - TATAMOTORS.NS
+    - TATAMOTORS.NS   # এটা ভুল ছিল না? চেক করো Yahoo-তে TATAMOTORS.NS কাজ করছে কিনা।
   it:
     - INFY.NS
     - WIPRO.NS
@@ -58,7 +58,7 @@ tickers:
     - TCS.NS
     - HDFCBANK.NS
     - INFY.NS
-    - TATAMOTORS.NS
+    # TATAMOTORS.NS সরিয়ে দাও যদি ইয়াহু কাজ না করে
   top_gainers: []
   top_losers: []
   breaking_news: []
