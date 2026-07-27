@@ -4,10 +4,8 @@ from google import genai
 from jinja2 import Template
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+# Create a client using the new API
 client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
-
-# ... বাকি কোডে model.generate_content-এর জায়গায় client.models.generate_content ব্যবহার করতে হবে।
-model = genai.GenerativeModel('gemini-pro')
 
 def load_prompt(template_path, **kwargs):
     with open(template_path, 'r') as f:
@@ -17,9 +15,11 @@ def load_prompt(template_path, **kwargs):
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def generate_structured_analysis(analysis_data):
     prompt = load_prompt('prompts/explain.txt', **analysis_data)
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',  # or gemini-2.5-pro if you have access
+        contents=prompt
+    )
     try:
-        # Expect a JSON block
         text = response.text
         # Extract JSON from code block if present
         if '```json' in text:
