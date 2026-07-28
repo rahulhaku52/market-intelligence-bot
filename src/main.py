@@ -116,11 +116,11 @@ def run_full_analysis(ticker, mode):
         )
         risk = compute_risk(confidence, atr_daily/latest_price*100, close_daily.pct_change().std(), gap, 0)
 
-        # ---- FIX: Define target and stoploss before using them ----
+        # Target & StopLoss (fallback values)
         target = resistance * 1.05
         stoploss = support * 0.97
 
-        # AI structured report (new god‑level schema)
+        # AI structured report – TODAY'S DATE ADDED HERE
         analysis_data = {
             'ticker': ticker,
             'latest_price': f"{latest_price:.2f}",
@@ -145,14 +145,19 @@ def run_full_analysis(ticker, mode):
             'volume_signal': 'Spike' if vol_spike else 'Normal',
             'confidence': confidence,
             'risk': risk,
-            'target': target,         # now defined
-            'stoploss': stoploss      # now defined
+            'target': target,
+            'stoploss': stoploss,
+            # THIS IS THE ONLY ADDITION – today's date
+            'data_freshness': date.today().isoformat()
         }
 
         ai_response = generate_structured_analysis(analysis_data)
         if ai_response is None:
             logger.warning(f"⚠️ AI analysis failed for {ticker}, skipping post")
             return None
+
+        # Force correct date in response (just in case AI overrides)
+        ai_response['data_freshness'] = date.today().isoformat()
 
         # Build chart
         chart = generate_chart(y_hist, ticker, support, resistance)
@@ -176,9 +181,9 @@ def run_full_analysis(ticker, mode):
             f"<b>Bear Case:</b> {scenarios.get('bear', 'N/A')}\n\n"
             f"<b>Confidence:</b> {ai_response.get('confidence', confidence)}%\n"
             f"<b>Risk:</b> {ai_response.get('risk', risk)}\n"
-            f"<b>Data Freshness:</b> {ai_response.get('data_freshness', 'N/A')}\n"
+            f"<b>Data Freshness:</b> {ai_response.get('data_freshness', date.today().isoformat())}\n"
             f"<b>Status:</b> {ai_response.get('status', 'N/A')}\n\n"
-            f"📝 {ai_response.get('summary', '')}"  # optional extra summary
+            f"📝 {ai_response.get('summary', '')}"
         )
 
         # Record signal for backtesting (using short-term TP/SL)
@@ -194,7 +199,7 @@ def run_full_analysis(ticker, mode):
             'confidence': confidence,
             'category': mode,
             'priority': 100,
-            'trend': ai_response.get('trend', 'Neutral')   # NEW KEY
+            'trend': ai_response.get('trend', 'Neutral')
         }
     except Exception as e:
         logger.error(f"Error analyzing {ticker}: {e}")
@@ -237,7 +242,6 @@ def main():
         new_trend = sig.get('trend', 'Neutral')
         new_conf = sig['confidence']
 
-        # ---- Posting Logic with Change Detection ----
         if not should_post(ticker, new_trend, new_conf):
             logger.info(f"⏭️ Skipping {ticker} (no significant change)")
             continue
