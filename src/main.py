@@ -34,8 +34,9 @@ def load_tickers(mode):
     if not symbols:
         return []
     vol_data = fetch_volume_batch(symbols)
-    tickers = scan_volume_spikes(vol_data, min_ratio=2.0, top_n=3)
-    logger.info(f"Auto tickers: {tickers}")
+    # Stricter volume spike threshold and top 5 for further filtering
+    tickers = scan_volume_spikes(vol_data, min_ratio=2.5, top_n=5)
+    logger.info(f"Auto tickers (vol>2.5x): {tickers}")
     return tickers
 
 def run_full_analysis(ticker, mode):
@@ -105,22 +106,46 @@ def run_full_analysis(ticker, mode):
         sentiment_norm = (sentiment + 30) / 60 * 100
 
         # Volume & Gap
-        vol_spike = detect_volume_spike(y_hist)
+        vol_spike = detect_volume_spike(y_hist)   # already passed scan, but we check again for local
         gap = detect_gap(y_hist)
 
         # Confidence & Risk
         tech_score = technical_score(y_hist, latest_price)
+        # fundamental score (simplified)
+        fund_score = 50
+        if pe and pe > 0:
+            if pe < 15: fund_score += 25
+            elif pe < 25: fund_score += 10
+            elif pe > 50: fund_score -= 15
+        if roe and roe > 0.15: fund_score += 20
+        fund_score = max(0, min(100, fund_score))
+
         confidence = compute_confidence(
-            tech_score, 50, sentiment_norm, 90 if vol_spike else 50,
+            tech_score, fund_score, sentiment_norm, 90 if vol_spike else 50,
             50, 50, 0, 50
         )
         risk = compute_risk(confidence, atr_daily/latest_price*100, close_daily.pct_change().std(), gap, 0)
 
-        # Target & StopLoss (fallback values)
+        # ---- GOD‑LEVEL GATE ----
+        # Gate 1: Minimum confidence
+        if confidence < 70:
+            logger.info(f"🚫 {ticker} skipped: confidence {confidence} < 70")
+            return None
+        # Gate 2: Multi-layer confirmation (at least 3 out of 4)
+        tech_ok = tech_score >= 60
+        fund_ok = fund_score >= 50
+        news_ok = sentiment_norm >= 50
+        vol_ok = vol_spike
+        confirmations = sum([tech_ok, fund_ok, news_ok, vol_ok])
+        if confirmations < 3:
+            logger.info(f"🚫 {ticker} skipped: only {confirmations}/4 confirmations (need ≥3)")
+            return None
+
+        # Target & StopLoss (fallback)
         target = resistance * 1.05
         stoploss = support * 0.97
 
-        # AI structured report – TODAY'S DATE ADDED HERE
+        # AI structured report
         analysis_data = {
             'ticker': ticker,
             'latest_price': f"{latest_price:.2f}",
@@ -147,8 +172,7 @@ def run_full_analysis(ticker, mode):
             'risk': risk,
             'target': target,
             'stoploss': stoploss,
-            # THIS IS THE ONLY ADDITION – today's date
-            'data_freshness': date.today().isoformat()
+            'data_freshness': today.isoformat()
         }
 
         ai_response = generate_structured_analysis(analysis_data)
@@ -156,13 +180,12 @@ def run_full_analysis(ticker, mode):
             logger.warning(f"⚠️ AI analysis failed for {ticker}, skipping post")
             return None
 
-        # Force correct date in response (just in case AI overrides)
-        ai_response['data_freshness'] = date.today().isoformat()
+        ai_response['data_freshness'] = today.isoformat()
 
         # Build chart
         chart = generate_chart(y_hist, ticker, support, resistance)
 
-        # ----- God‑Level Telegram Message -----
+        # God‑Level Telegram Message
         reasons_list = '\n'.join([f"• {r}" for r in ai_response.get('reasons', [])])
         scenarios = ai_response.get('scenarios', {})
         message = (
@@ -181,7 +204,7 @@ def run_full_analysis(ticker, mode):
             f"<b>Bear Case:</b> {scenarios.get('bear', 'N/A')}\n\n"
             f"<b>Confidence:</b> {ai_response.get('confidence', confidence)}%\n"
             f"<b>Risk:</b> {ai_response.get('risk', risk)}\n"
-            f"<b>Data Freshness:</b> {ai_response.get('data_freshness', date.today().isoformat())}\n"
+            f"<b>Data Freshness:</b> {ai_response.get('data_freshness', today.isoformat())}\n"
             f"<b>Status:</b> {ai_response.get('status', 'N/A')}\n\n"
             f"📝 {ai_response.get('summary', '')}"
         )
@@ -232,16 +255,21 @@ def main():
             continue
         analysis = run_full_analysis(ticker, mode)
         if analysis:
+            # Additional gate: confidence already checked inside run_full_analysis
             signals.append(analysis)
         time.sleep(1)
 
+    # Sort by confidence and take top 2 to avoid spam
+    signals = sorted(signals, key=lambda x: x['confidence'], reverse=True)[:2]
     signals = sort_by_priority(signals)
+
     supabase = get_supabase()
     for sig in signals:
         ticker = sig['ticker']
         new_trend = sig.get('trend', 'Neutral')
         new_conf = sig['confidence']
 
+        # ---- Posting Logic with strict change detection ----
         if not should_post(ticker, new_trend, new_conf):
             logger.info(f"⏭️ Skipping {ticker} (no significant change)")
             continue
