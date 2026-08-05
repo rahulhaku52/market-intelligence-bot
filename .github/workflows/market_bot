@@ -1,0 +1,45 @@
+name: Indian Market Intelligence Bot (v4)
+
+on:
+  schedule:
+    - cron: '15 4 * * 1-5'   # 09:45 AM IST (Mon-Fri)
+    - cron: '15 6 * * 1-5'   # 11:45 AM IST (Mon-Fri)
+    - cron: '15 8 * * 1-5'   # 01:45 PM IST (Mon-Fri)
+    - cron: '30 10 * * 1-5'  # 04:00 PM IST Post-market (Mon-Fri)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force run (ignore cooldowns)'
+        type: boolean
+        default: false
+
+concurrency: market-bot-run
+
+jobs:
+  run-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run 30-Layer Production Engine
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            python src/main.py --mode dynamic --force
+          else
+            python src/main.py --mode dynamic
+          fi
