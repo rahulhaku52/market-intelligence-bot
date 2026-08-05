@@ -1,1 +1,0 @@
-Summarize the key points from the analysis for a Telegram post. Use 📈, ✅, ❌, etc.
