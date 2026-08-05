@@ -1,0 +1,19 @@
+sectors:
+  IT:
+    index: "^CNXIT"
+    tickers: [TCS.NS, INFY.NS, WIPRO.NS, HCLTECH.NS, TECHM.NS, LTIM.NS]
+  BANKING:
+    index: "^NSEBANK"
+    tickers: [HDFCBANK.NS, ICICIBANK.NS, SBIN.NS, KOTAKBANK.NS, AXISBANK.NS]
+  PHARMA:
+    index: "^CNXPHARMA"
+    tickers: [SUNPHARMA.NS, DRREDDY.NS, CIPLA.NS, DIVISLAB.NS, LUPIN.NS]
+  AUTO:
+    index: "^CNXAUTO"
+    tickers: [MARUTI.NS, TATAMOTORS.NS, M&M.NS, HEROMOTOCO.NS, EICHERMOT.NS]
+  DEFENCE:
+    index: "^NIFTY500.NS"
+    tickers: [BEL.NS, HAL.NS, BDL.NS]
+  METAL:
+    index: "^CNXMETAL"
+    tickers: [TATASTEEL.NS, JSWSTEEL.NS, HINDALCO.NS]

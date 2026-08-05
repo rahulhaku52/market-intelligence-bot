@@ -1,0 +1,240 @@
+layers:
+  - layer: 1
+    name: Data Source Router
+    module: src.data.quote_router
+    input: Ticker Symbol
+    output: Live Quote Stream
+    failure_behavior: DATA_REJECTED
+    weight: mandatory
+
+  - layer: 2
+    name: Quote Freshness Validator
+    module: src.data.quote_router
+    input: Live Quote & Session State
+    output: Freshness Metric & Price Type
+    failure_behavior: STALE_PRICE
+    weight: mandatory
+
+  - layer: 3
+    name: Cross-Source Price Validator
+    module: src.data.validator
+    input: Multi-Source Quotes
+    output: Validated LTP & Bps Deviation
+    failure_behavior: SOURCE_MISMATCH
+    weight: mandatory
+
+  - layer: 4
+    name: NSE Market Calendar
+    module: src.market.nse_calendar
+    input: Datetime
+    output: Session State & Holiday Flags
+    failure_behavior: HALT
+    weight: mandatory
+
+  - layer: 5
+    name: Market Session Engine
+    module: src.market.nse_calendar
+    input: Session State
+    output: Session Rules (Regular vs Closed)
+    failure_behavior: ADAPT_RULES
+    weight: mandatory
+
+  - layer: 6
+    name: Universe Eligibility Filter
+    module: src.scanner.universe
+    input: Nifty 500 Ticker List
+    output: Valid Tickers
+    failure_behavior: INSUFFICIENT_DATA
+    weight: mandatory
+
+  - layer: 7
+    name: Liquidity Filter
+    module: src.scanner.prescanner
+    input: Price, Volume, Turnover
+    output: Liquid Tickers
+    failure_behavior: REJECT_CANDIDATE
+    weight: mandatory
+
+  - layer: 8
+    name: Market Regime Engine
+    module: src.market.regime
+    input: Nifty 50 Index Candles
+    output: Trend Regime (Bullish/Bearish/Sideways)
+    failure_behavior: NEUTRAL_REGIME
+    weight: 0.05
+
+  - layer: 9
+    name: NIFTY Market Breadth Engine
+    module: src.market.breadth
+    input: Nifty 500 Daily Changes
+    output: Advance/Decline Ratio & % > EMA50
+    failure_behavior: OMIT_AND_REWEIGHT
+    weight: 0.05
+
+  - layer: 10
+    name: Sector Relative Strength Engine
+    module: src.market.sector
+    input: Sector Index vs Stock Price
+    output: Relative Strength Rank
+    failure_behavior: OMIT_AND_REWEIGHT
+    weight: 0.05
+
+  - layer: 11
+    name: Multi-Timeframe Trend Engine
+    module: src.technical.timeframe
+    input: 15m, 30m, 60m, 1D, 1W Candles
+    output: MTF Confluence Matrix
+    failure_behavior: INSUFFICIENT_DATA
+    weight: 0.15
+
+  - layer: 12
+    name: Market Structure Engine
+    module: src.technical.structure
+    input: Daily & 1H Swings
+    output: HH/HL vs LH/LL Market Structure
+    failure_behavior: NEUTRAL_STRUCTURE
+    weight: 0.10
+
+  - layer: 13
+    name: Support/Resistance Engine
+    module: src.technical.levels
+    input: Pivots, Highs, Lows, VWAP, Fibo
+    output: Clustered S/R Zones & Strengths
+    failure_behavior: FALLBACK_PERCENTAGE
+    weight: 0.10
+
+  - layer: 14
+    name: Breakout/Retest Engine
+    module: src.technical.price_action
+    input: Price & Key S/R Zones
+    output: Breakout State & Retest Quality
+    failure_behavior: NO_BREAKOUT
+    weight: 0.05
+
+  - layer: 15
+    name: Technical Momentum Engine
+    module: src.technical.indicators
+    input: RSI, MACD, Moving Averages
+    output: Technical Score (0-100)
+    failure_behavior: INSUFFICIENT_DATA
+    weight: 0.10
+
+  - layer: 16
+    name: Volatility Engine
+    module: src.market.volatility
+    input: ATR & India VIX
+    output: Volatility State & Risk Buffer
+    failure_behavior: DEFAULT_VOLATILITY
+    weight: 0.05
+
+  - layer: 17
+    name: Volume & RVOL Engine
+    module: src.technical.indicators
+    input: Volume & 20-day Rolling Mean
+    output: RVOL Ratio & Volume Score
+    failure_behavior: NORMAL_VOLUME
+    weight: 0.08
+
+  - layer: 18
+    name: Gap & Delivery Participation
+    module: src.scanner.prescanner
+    input: Open vs Prev Close & Delivery %
+    output: Gap Type & Participation Score
+    failure_behavior: NO_GAP
+    weight: 0.04
+
+  - layer: 19
+    name: Price Action Pattern Engine
+    module: src.technical.price_action
+    input: Candlestick Formations
+    output: Bullish/Bearish Candle Signals
+    failure_behavior: NEUTRAL_PATTERNS
+    weight: 0.04
+
+  - layer: 20
+    name: Fundamental Quality Engine
+    module: src.fundamental.quality
+    input: ROE, ROCE, Debt/Equity, Cash Flow
+    output: Quality Score
+    failure_behavior: OMIT_AND_REWEIGHT
+    weight: 0.05
+
+  - layer: 21
+    name: Fundamental Valuation Engine
+    module: src.fundamental.valuation
+    input: PE, PB, PEG, Forward PE
+    output: Valuation Score
+    failure_behavior: OMIT_AND_REWEIGHT
+    weight: 0.03
+
+  - layer: 22
+    name: Earnings & Corporate Events Engine
+    module: src.events.corporate
+    input: Upcoming Earnings & Ex-Dates
+    output: Event Lock Status & Event Risk
+    failure_behavior: EVENT_LOCK
+    weight: mandatory
+
+  - layer: 23
+    name: News Catalyst & Sentiment Engine
+    module: src.news.aggregator
+    input: Recent News Headlines & Sources
+    output: Weighted News Sentiment Score
+    failure_behavior: OMIT_AND_REWEIGHT
+    weight: 0.06
+
+  - layer: 24
+    name: Macro & Global Context Engine
+    module: src.market.regime
+    input: Global Market Signals / Oil / Currency
+    output: Macro Score
+    failure_behavior: OMIT_AND_REWEIGHT
+    weight: 0.00
+
+  - layer: 25
+    name: Relative Strength Peer Engine
+    module: src.market.sector
+    input: Sector Peer Comparisons
+    output: Peer Rank Score
+    failure_behavior: OMIT_AND_REWEIGHT
+    weight: 0.00
+
+  - layer: 26
+    name: Pattern Matcher Engine
+    module: src.performance.pattern_matcher
+    input: Setup Features Vector
+    output: Similar Historical Setups List
+    failure_behavior: NO_MATCHES
+    weight: 0.00
+
+  - layer: 27
+    name: Historical Backtest Calibration
+    module: src.performance.backtester
+    input: Historical Bucket Outcomes
+    output: Calibration State & Factor
+    failure_behavior: UNCALIBRATED
+    weight: 0.00
+
+  - layer: 28
+    name: Dynamic Confluence Engine
+    module: src.scoring.confluence
+    input: All Active Layer Outputs
+    output: Final Setup Score & Confluence %
+    failure_behavior: REJECT_SIGNAL
+    weight: mandatory
+
+  - layer: 29
+    name: Trade & Risk Planning Engine
+    module: src.trading.planner
+    input: LTP, S/R, ATR, Volatility
+    output: Entry, SL, TP1, TP2, TP3, R:R, Quantity
+    failure_behavior: LOW_RR
+    weight: mandatory
+
+  - layer: 30
+    name: Pre-Flight Signal Auditor
+    module: src.trading.auditor
+    input: 13-Point Checklist Audit
+    output: Audit Pass / Fail Flag
+    failure_behavior: AUDIT_FAILED
+    weight: mandatory

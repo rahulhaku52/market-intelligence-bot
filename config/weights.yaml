@@ -1,0 +1,27 @@
+weights:
+  intraday:
+    structure: 0.22
+    multi_timeframe: 0.15
+    volume: 0.15
+    market_sector: 0.15
+    momentum: 0.10
+    volatility: 0.10
+    news_catalyst: 0.08
+    fundamental: 0.05
+  swing:
+    structure: 0.20
+    multi_timeframe: 0.15
+    fundamental: 0.15
+    market_sector: 0.15
+    volume: 0.12
+    momentum: 0.10
+    news_catalyst: 0.08
+    volatility: 0.05
+  positional:
+    fundamental: 0.35
+    structure: 0.15
+    market_sector: 0.15
+    multi_timeframe: 0.12
+    news_catalyst: 0.10
+    volume: 0.08
+    momentum: 0.05
